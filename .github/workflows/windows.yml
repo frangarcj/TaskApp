@@ -46,16 +46,31 @@ jobs:
         run: |
           . .github/scripts/ui.ps1
           $bin = swift build --product TaskApp --show-bin-path
-          $app = Start-Process -FilePath "$bin\TaskApp.exe" -WorkingDirectory $bin -PassThru `
-              -WindowStyle Minimized -RedirectStandardOutput app-out.txt -RedirectStandardError app-err.txt
-          Start-Sleep -Seconds 8
-          if ($app.HasExited) { Write-Host "La app terminó con código $($app.ExitCode)"; exit 1 }
-          $w = Get-AppWindow
-          Save-Screenshot "1-inicio"; Save-Controls $w "1-inicio"
-          if (Click-Text $w "Tareas") { Save-Screenshot "2-tareas"; Save-Controls $w "2-tareas" }
-          if (Click-Text $w "Ajustes") { Save-Screenshot "3-ajustes"; Save-Controls $w "3-ajustes" }
-          if ($app.HasExited) { Write-Host "La app terminó con código $($app.ExitCode)" } else { Stop-Process -Id $app.Id }
-          Get-Content app-out.txt, app-err.txt -ErrorAction SilentlyContinue | Select-Object -Last 40
+          $app = Start-App "$bin\TaskApp.exe" "taskapp"
+          Save-Screenshot "1-inicio"
+          $h = [Win]::FindWindow("SwiftOpenUIMainWindow", $null)
+          if ($h -ne [IntPtr]::Zero) {
+              $w = Get-AppWindow
+              Save-Screenshot "2-ventana"; Save-Controls $w "2-ventana"
+              if (Click-Text $w "Tareas") { Save-Screenshot "3-tareas"; Save-Controls $w "3-tareas" }
+              if (Click-Text $w "Ajustes") { Save-Screenshot "4-ajustes"; Save-Controls $w "4-ajustes" }
+          }
+          if (-not $app.HasExited) { Stop-Process -Id $app.Id -Force }
+          Get-Process -Name WerFault -ErrorAction SilentlyContinue | Stop-Process -Force
+
+      # Para comparar: un ejemplo del propio SwiftOpenUI con el mismo backend.
+      - name: Ejemplo HelloWorld de SwiftOpenUI
+        if: always()
+        working-directory: swiftopenui
+        run: |
+          . ../TaskApp2025/.github/scripts/ui.ps1
+          swift build --product HelloWorld
+          $bin = swift build --product HelloWorld --show-bin-path
+          $p = Start-App "$bin\HelloWorld.exe" "helloworld"
+          Save-Screenshot "5-helloworld"
+          New-Item -ItemType Directory -Force -Path ../TaskApp2025/shots | Out-Null
+          Move-Item shots/*.png ../TaskApp2025/shots/ -Force
+          if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -63,4 +78,7 @@ jobs:
           name: windows-ui
           path: |
             TaskApp2025/shots
-            TaskApp2025/app-*.txt
+            TaskApp2025/*-out.txt
+            TaskApp2025/*-err.txt
+            swiftopenui/*-out.txt
+            swiftopenui/*-err.txt

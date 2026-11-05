@@ -17,6 +17,8 @@ public static class Win {
     [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
     [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
     [DllImport("user32.dll")] public static extern bool EnumChildWindows(IntPtr h, EnumProc f, IntPtr p);
+    [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc f, IntPtr p);
+    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetClassName(IntPtr h, StringBuilder s, int n);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
     [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
@@ -24,6 +26,11 @@ public static class Win {
     public static List<IntPtr> Children(IntPtr parent) {
         var list = new List<IntPtr>();
         EnumChildWindows(parent, (h, p) => { list.Add(h); return true; }, IntPtr.Zero);
+        return list;
+    }
+    public static List<IntPtr> TopLevel(uint pid) {
+        var list = new List<IntPtr>();
+        EnumWindows((h, p) => { uint owner; GetWindowThreadProcessId(h, out owner); if (owner == pid) list.Add(h); return true; }, IntPtr.Zero);
         return list;
     }
     public static string Cls(IntPtr h) { var s = new StringBuilder(256); GetClassName(h, s, 256); return s.ToString(); }
@@ -81,4 +88,30 @@ function Click-Text([IntPtr]$h, [string]$text, [switch]$Right) {
     if (-not $c) { Write-Host "no hay control con texto '$text'"; return $false }
     Click-At ($c.X + [int]($c.W / 2)) ($c.Y + [int]($c.H / 2)) -Right:$Right
     return $true
+}
+
+# Diagnóstico: ventanas de primer nivel de un proceso y errores recientes de aplicaciones.
+function Show-Diagnostics([int]$processId) {
+    Write-Host "--- ventanas del proceso $processId"
+    foreach ($w in [Win]::TopLevel([uint32]$processId)) {
+        $r = New-Object RECT; [Win]::GetWindowRect($w, [ref]$r) | Out-Null
+        Write-Host ("  {0} '{1}' visible={2} ({3},{4})-({5},{6})" -f [Win]::Cls($w), [Win]::Text($w), [Win]::IsWindowVisible($w), $r.Left, $r.Top, $r.Right, $r.Bottom)
+    }
+    Write-Host "--- procesos de informe de errores"
+    Get-Process -Name WerFault, WerFaultSecure -ErrorAction SilentlyContinue | Format-Table Id, ProcessName, MainWindowTitle | Out-String | Write-Host
+    Write-Host "--- registro de eventos (errores de aplicación)"
+    Get-WinEvent -FilterHashtable @{ LogName = 'Application'; Level = 2; StartTime = (Get-Date).AddMinutes(-10) } -ErrorAction SilentlyContinue |
+        Select-Object -First 5 | ForEach-Object { Write-Host "[$($_.ProviderName)] $($_.Message)" }
+}
+
+# Arranca un ejecutable, espera y prueba su ventana. Devuelve el proceso.
+function Start-App([string]$exe, [string]$label) {
+    $dir = Split-Path $exe
+    $p = Start-Process -FilePath $exe -WorkingDirectory $dir -PassThru -WindowStyle Minimized `
+        -RedirectStandardOutput "$label-out.txt" -RedirectStandardError "$label-err.txt"
+    Start-Sleep -Seconds 10
+    Write-Host "=== $label : vivo=$(-not $p.HasExited) responde=$(if (-not $p.HasExited) { $p.Responding })"
+    if ($p.HasExited) { Write-Host "código de salida: $($p.ExitCode) (0x{0:X})" -f $p.ExitCode }
+    else { Show-Diagnostics $p.Id }
+    return $p
 }
