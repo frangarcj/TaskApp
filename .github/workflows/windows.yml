@@ -48,9 +48,8 @@ jobs:
           $bin = swift build --product TaskApp --show-bin-path
           $app = Start-App "$bin\TaskApp.exe" "taskapp"
           Save-Screenshot "1-inicio"
-          $h = [Win]::FindWindow("SwiftOpenUIMainWindow", $null)
-          if ($h -ne [IntPtr]::Zero) {
-              $w = Get-AppWindow
+          if (-not $app.HasExited) {
+              $w = Get-AppWindow $app.Id
               Save-Screenshot "2-ventana"; Save-Controls $w "2-ventana"
               if (Click-Text $w "Tareas") { Save-Screenshot "3-tareas"; Save-Controls $w "3-tareas" }
               if (Click-Text $w "Ajustes") { Save-Screenshot "4-ajustes"; Save-Controls $w "4-ajustes" }

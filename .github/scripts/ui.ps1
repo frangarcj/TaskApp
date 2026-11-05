@@ -44,14 +44,16 @@ public static class Win {
 "@
 [Win]::SetProcessDPIAware() | Out-Null
 
-# Ventana principal de SwiftOpenUI, delante de todo y en una posición fija.
-function Get-AppWindow {
-    $h = [Win]::FindWindow("SwiftOpenUIMainWindow", $null)
-    if ($h -eq [IntPtr]::Zero) { throw "No se encuentra la ventana SwiftOpenUIMainWindow" }
-    [Win]::ShowWindow($h, 9) | Out-Null
+# Ventana principal de SwiftOpenUI del proceso, restaurada, delante de todo y
+# en una posición fija. (Se busca entre las ventanas del proceso: FindWindow
+# con un título $null recibe "" desde PowerShell y no encuentra nada.)
+function Get-AppWindow([int]$processId) {
+    $h = [Win]::TopLevel([uint32]$processId) | Where-Object { [Win]::Cls($_) -eq "SwiftOpenUIMainWindow" } | Select-Object -First 1
+    if (-not $h) { throw "El proceso $processId no tiene ventana SwiftOpenUIMainWindow" }
+    [Win]::ShowWindow($h, 9) | Out-Null                                          # SW_RESTORE
     [Win]::SetWindowPos($h, [IntPtr](-1), 0, 0, 900, 700, 0x0040) | Out-Null   # HWND_TOPMOST, SWP_SHOWWINDOW
     [Win]::SetForegroundWindow($h) | Out-Null
-    Start-Sleep -Milliseconds 800
+    Start-Sleep -Milliseconds 1000
     return $h
 }
 
