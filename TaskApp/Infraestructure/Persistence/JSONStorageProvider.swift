@@ -18,6 +18,9 @@ class JSONStorageProvider: StorageProvider {
     func saveTasks(tasks: [Task]) async throws {
         do {
             let data = try JSONEncoder().encode(tasks)
+            // La carpeta Documentos no existe en todos los sistemas (Linux mínimo, WSL).
+            try FileManager.default.createDirectory(
+                at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
             try data.write(to: fileURL)
         } catch {
             print("Error saving tasks: \(error)")
