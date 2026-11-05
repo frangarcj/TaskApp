@@ -50,33 +50,22 @@ jobs:
           Save-Screenshot "1-inicio"
           if (-not $app.HasExited) {
               $w = Get-AppWindow $app.Id
-              Save-Screenshot "2-ventana"; Save-Controls $w "2-ventana"
+              Snap $w "2-ventana"
               if (Click-Text $w "Tareas") {
-                  Save-Screenshot "3-tareas"; Save-Controls $w "3-tareas"
-                  # Detalle de "Llamar a mamá": cambiar el título y marcarla como completada.
+                  Snap $w "3-tareas"
+                  if (Click-Text $w "Añadir Tarea") { Snap $w "4-anadida" }
+                  # Detalle: no debe volver a la lista al editar.
                   if (Click-Text $w "Llamar a mamá") {
-                      Save-Screenshot "4-detalle"; Save-Controls $w "4-detalle"
-                      if (Click-Text $w "Completada") { Save-Screenshot "5-completada"; Save-Controls $w "5-completada" }
+                      Snap $w "5-detalle"
+                      if (Click-Text $w "Completada") { Snap $w "6-completada" }
+                      if (Click-Class $w "Edit") { Send-Text "{END} hoy"; Snap $w "7-titulo" }
+                      if (Click-Text $w "← Back") { Snap $w "8-lista" }
                   }
               }
-              if (Click-Text $w "Ajustes") { Save-Screenshot "6-ajustes"; Save-Controls $w "6-ajustes" }
+              if (Click-Text $w "Ajustes") { Snap $w "9-ajustes" }
           }
           if (-not $app.HasExited) { Stop-Process -Id $app.Id -Force }
           Get-Process -Name WerFault -ErrorAction SilentlyContinue | Stop-Process -Force
-
-      # Para comparar: un ejemplo del propio SwiftOpenUI con el mismo backend.
-      - name: Ejemplo HelloWorld de SwiftOpenUI
-        if: always()
-        working-directory: swiftopenui
-        run: |
-          . ../TaskApp2025/.github/scripts/ui.ps1
-          swift build --product HelloWorld
-          $bin = swift build --product HelloWorld --show-bin-path
-          $p = Start-App "$bin\HelloWorld.exe" "helloworld"
-          Save-Screenshot "9-helloworld"
-          New-Item -ItemType Directory -Force -Path ../TaskApp2025/shots | Out-Null
-          Move-Item shots/*.png ../TaskApp2025/shots/ -Force
-          if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -86,5 +75,3 @@ jobs:
             TaskApp2025/shots
             TaskApp2025/*-out.txt
             TaskApp2025/*-err.txt
-            swiftopenui/*-out.txt
-            swiftopenui/*-err.txt

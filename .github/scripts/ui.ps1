@@ -118,3 +118,17 @@ function Start-App([string]$exe, [string]$label) {
     else { Show-Diagnostics $p.Id }
     return $p
 }
+
+# Clic en el centro del primer control visible de una clase (p. ej. "Edit").
+function Click-Class([IntPtr]$h, [string]$class) {
+    $c = Get-Controls $h | Where-Object { $_.Class -eq $class } | Select-Object -First 1
+    if (-not $c) { Write-Host "no hay control de clase '$class'"; return $false }
+    Click-At ($c.X + [int]($c.W / 2)) ($c.Y + [int]($c.H / 2))
+    return $true
+}
+
+# Escribe texto con el teclado en el control que tenga el foco.
+function Send-Text([string]$text) { [System.Windows.Forms.SendKeys]::SendWait($text); Start-Sleep -Milliseconds 1500 }
+
+# Captura y lista de controles con el mismo nombre.
+function Snap([IntPtr]$h, [string]$name) { Save-Screenshot $name; Save-Controls $h $name }
