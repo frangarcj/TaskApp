@@ -61,6 +61,7 @@ jobs:
                       Snap $w "5-detalle"
                       if (Click-Text $w "Completada") { Snap $w "6-completada" }
                       if (Click-Text $w "Vencimiento") { Snap $w "6b-fecha" }
+                      if (Click-Text $w "Recordatorio") { Snap $w "6c-recordatorio" }
                       if (Click-Class $w "Edit") { Send-Text "{END} hoy"; Snap $w "7-titulo" }
                       if (Click-Text $w "← Back") { Snap $w "8-lista" }
                   }
