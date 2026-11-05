@@ -31,6 +31,12 @@ jobs:
           tag: 6.3.3-RELEASE
       - run: swift --version
 
+      - uses: actions/cache@v4
+        with:
+          path: TaskApp2025/.build
+          key: windows-build-${{ hashFiles('TaskApp2025/Package.resolved') }}-${{ hashFiles('swiftopenui/Sources/**') }}
+          restore-keys: windows-build-
+
       - name: Compilar
         working-directory: TaskApp2025
         run: swift build --product TaskApp
@@ -38,25 +44,17 @@ jobs:
       - name: Arrancar y probar la interfaz
         working-directory: TaskApp2025
         run: |
-          . ../TaskApp2025/.github/scripts/ui.ps1
+          . .github/scripts/ui.ps1
           $bin = swift build --product TaskApp --show-bin-path
           $app = Start-Process -FilePath "$bin\TaskApp.exe" -WorkingDirectory $bin -PassThru `
-              -RedirectStandardOutput app-out.txt -RedirectStandardError app-err.txt
-          Start-Sleep -Seconds 10
-          if ($app.HasExited) { Write-Host "La app terminó con código $($app.ExitCode)" }
-          Save-Screenshot "1-inicio"
-          # Ventanas de la app, con su posición, para saber dónde hacer clic.
-          Add-Type @"
-          using System; using System.Runtime.InteropServices;
-          public struct RECT { public int Left, Top, Right, Bottom; }
-          public static class Win { [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r); }
-          "@
-          $app.Refresh()
-          $r = New-Object RECT
-          [Win]::GetWindowRect($app.MainWindowHandle, [ref]$r) | Out-Null
-          Write-Host "ventana: '$($app.MainWindowTitle)' ($($r.Left),$($r.Top))-($($r.Right),$($r.Bottom))"
-          "$($r.Left) $($r.Top) $($r.Right) $($r.Bottom)" | Out-File window.txt
-          if (-not $app.HasExited) { Stop-Process -Id $app.Id }
+              -WindowStyle Minimized -RedirectStandardOutput app-out.txt -RedirectStandardError app-err.txt
+          Start-Sleep -Seconds 8
+          if ($app.HasExited) { Write-Host "La app terminó con código $($app.ExitCode)"; exit 1 }
+          $w = Get-AppWindow
+          Save-Screenshot "1-inicio"; Save-Controls $w "1-inicio"
+          if (Click-Text $w "Tareas") { Save-Screenshot "2-tareas"; Save-Controls $w "2-tareas" }
+          if (Click-Text $w "Ajustes") { Save-Screenshot "3-ajustes"; Save-Controls $w "3-ajustes" }
+          if ($app.HasExited) { Write-Host "La app terminó con código $($app.ExitCode)" } else { Stop-Process -Id $app.Id }
           Get-Content app-out.txt, app-err.txt -ErrorAction SilentlyContinue | Select-Object -Last 40
 
       - uses: actions/upload-artifact@v4
@@ -65,5 +63,4 @@ jobs:
           name: windows-ui
           path: |
             TaskApp2025/shots
-            TaskApp2025/window.txt
             TaskApp2025/app-*.txt
