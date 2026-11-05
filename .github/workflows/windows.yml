@@ -51,8 +51,15 @@ jobs:
           if (-not $app.HasExited) {
               $w = Get-AppWindow $app.Id
               Save-Screenshot "2-ventana"; Save-Controls $w "2-ventana"
-              if (Click-Text $w "Tareas") { Save-Screenshot "3-tareas"; Save-Controls $w "3-tareas" }
-              if (Click-Text $w "Ajustes") { Save-Screenshot "4-ajustes"; Save-Controls $w "4-ajustes" }
+              if (Click-Text $w "Tareas") {
+                  Save-Screenshot "3-tareas"; Save-Controls $w "3-tareas"
+                  # Detalle de "Llamar a mamá": cambiar el título y marcarla como completada.
+                  if (Click-Text $w "Llamar a mamá") {
+                      Save-Screenshot "4-detalle"; Save-Controls $w "4-detalle"
+                      if (Click-Text $w "Completada") { Save-Screenshot "5-completada"; Save-Controls $w "5-completada" }
+                  }
+              }
+              if (Click-Text $w "Ajustes") { Save-Screenshot "6-ajustes"; Save-Controls $w "6-ajustes" }
           }
           if (-not $app.HasExited) { Stop-Process -Id $app.Id -Force }
           Get-Process -Name WerFault -ErrorAction SilentlyContinue | Stop-Process -Force
@@ -66,7 +73,7 @@ jobs:
           swift build --product HelloWorld
           $bin = swift build --product HelloWorld --show-bin-path
           $p = Start-App "$bin\HelloWorld.exe" "helloworld"
-          Save-Screenshot "5-helloworld"
+          Save-Screenshot "9-helloworld"
           New-Item -ItemType Directory -Force -Path ../TaskApp2025/shots | Out-Null
           Move-Item shots/*.png ../TaskApp2025/shots/ -Force
           if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }

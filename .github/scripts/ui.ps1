@@ -84,9 +84,10 @@ function Save-Screenshot([string]$name) {
 
 function Click-At([int]$x, [int]$y, [switch]$Right) { [Win]::Click($x, $y, $Right.IsPresent); Start-Sleep -Milliseconds 1500 }
 
-# Clic en el centro del primer control visible cuyo texto sea $text.
+# Clic en el centro del primer control visible cuyo texto sea $text (o termine
+# en " $text", como una etiqueta con icono).
 function Click-Text([IntPtr]$h, [string]$text, [switch]$Right) {
-    $c = Get-Controls $h | Where-Object { $_.Text -eq $text } | Select-Object -First 1
+    $c = Get-Controls $h | Where-Object { $_.Text -eq $text -or $_.Text -like "* $text" } | Select-Object -First 1
     if (-not $c) { Write-Host "no hay control con texto '$text'"; return $false }
     Click-At ($c.X + [int]($c.W / 2)) ($c.Y + [int]($c.H / 2)) -Right:$Right
     return $true
