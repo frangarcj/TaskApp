@@ -53,7 +53,8 @@ jobs:
               Snap $w "2-ventana"
               if (Click-Text $w "Tareas") {
                   Snap $w "3-tareas"
-                  if (Click-Text $w "Añadir Tarea") { Snap $w "4-anadida" }
+                  # "Añadir Tarea" dibuja su texto (no es un control con texto): por posición.
+                  Click-At 833 44; Snap $w "4-anadida"
                   # Detalle: no debe volver a la lista al editar.
                   if (Click-Text $w "Llamar a mamá") {
                       Snap $w "5-detalle"
