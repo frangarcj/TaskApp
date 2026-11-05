@@ -1,0 +1,69 @@
+name: Windows
+
+# Compila el TaskApp de 2025 con SwiftOpenUI (backend Win32) en Windows real,
+# lo arranca y guarda capturas de la interfaz como artefacto.
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      # Misma disposición que en local: TaskApp2025/ y swiftopenui/ juntas,
+      # porque Package.swift usa .package(path: "../swiftopenui").
+      - uses: actions/checkout@v4
+        with:
+          path: TaskApp2025
+      - uses: actions/checkout@v4
+        with:
+          repository: frangarcj/SwiftOpenUI
+          ref: uallps
+          path: swiftopenui
+
+      - uses: seanmiddleditch/gha-setup-vsdevenv@v5
+      - uses: compnerd/gha-setup-swift@v0.3.0
+        with:
+          branch: swift-6.3.3-release
+          tag: 6.3.3-RELEASE
+      - run: swift --version
+
+      - name: Compilar
+        working-directory: TaskApp2025
+        run: swift build --product TaskApp
+
+      - name: Arrancar y probar la interfaz
+        working-directory: TaskApp2025
+        run: |
+          . ../TaskApp2025/.github/scripts/ui.ps1
+          $bin = swift build --product TaskApp --show-bin-path
+          $app = Start-Process -FilePath "$bin\TaskApp.exe" -WorkingDirectory $bin -PassThru `
+              -RedirectStandardOutput app-out.txt -RedirectStandardError app-err.txt
+          Start-Sleep -Seconds 10
+          if ($app.HasExited) { Write-Host "La app terminó con código $($app.ExitCode)" }
+          Save-Screenshot "1-inicio"
+          # Ventanas de la app, con su posición, para saber dónde hacer clic.
+          Add-Type @"
+          using System; using System.Runtime.InteropServices;
+          public struct RECT { public int Left, Top, Right, Bottom; }
+          public static class Win { [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r); }
+          "@
+          $app.Refresh()
+          $r = New-Object RECT
+          [Win]::GetWindowRect($app.MainWindowHandle, [ref]$r) | Out-Null
+          Write-Host "ventana: '$($app.MainWindowTitle)' ($($r.Left),$($r.Top))-($($r.Right),$($r.Bottom))"
+          "$($r.Left) $($r.Top) $($r.Right) $($r.Bottom)" | Out-File window.txt
+          if (-not $app.HasExited) { Stop-Process -Id $app.Id }
+          Get-Content app-out.txt, app-err.txt -ErrorAction SilentlyContinue | Select-Object -Last 40
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-ui
+          path: |
+            TaskApp2025/shots
+            TaskApp2025/window.txt
+            TaskApp2025/app-*.txt
