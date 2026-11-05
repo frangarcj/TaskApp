@@ -46,6 +46,7 @@ jobs:
         run: |
           . .github/scripts/ui.ps1
           $bin = swift build --product TaskApp --show-bin-path
+          $env:SWIFTOPENUI_TRACE_FILE = "$PWD\trace.txt"
           $app = Start-App "$bin\TaskApp.exe" "taskapp"
           Save-Screenshot "1-inicio"
           if (-not $app.HasExited) {
@@ -83,6 +84,7 @@ jobs:
           }
           if (-not $app.HasExited) { Stop-Process -Id $app.Id -Force }
           Get-Process -Name WerFault -ErrorAction SilentlyContinue | Stop-Process -Force
+          Write-Host "--- traza"; Get-Content trace.txt -ErrorAction SilentlyContinue
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -90,5 +92,6 @@ jobs:
           name: windows-ui
           path: |
             TaskApp2025/shots
+            TaskApp2025/trace.txt
             TaskApp2025/*-out.txt
             TaskApp2025/*-err.txt
