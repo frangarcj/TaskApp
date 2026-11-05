@@ -59,11 +59,27 @@ jobs:
                   if (Click-Text $w "Llamar a mamá") {
                       Snap $w "5-detalle"
                       if (Click-Text $w "Completada") { Snap $w "6-completada" }
+                      if (Click-Text $w "Vencimiento") { Snap $w "6b-fecha" }
                       if (Click-Class $w "Edit") { Send-Text "{END} hoy"; Snap $w "7-titulo" }
                       if (Click-Text $w "← Back") { Snap $w "8-lista" }
                   }
+                  # Borrar con el menú contextual: clic derecho y primera opción.
+                  if (Click-Text $w "Hacer ejercicio" -Right) {
+                      Snap $w "8b-menu"
+                      Send-Text "{DOWN}{ENTER}"; Snap $w "8c-borrada"
+                  }
               }
-              if (Click-Text $w "Ajustes") { Snap $w "9-ajustes" }
+              if (Click-Text $w "Ajustes") {
+                  Snap $w "9-ajustes"
+                  if (Click-Text $w "Show Priorities") { Snap $w "9b-desmarcado" }
+              }
+          }
+          # Los ajustes deben seguir desmarcados tras reiniciar la app.
+          if (-not $app.HasExited) { Stop-Process -Id $app.Id -Force; Start-Sleep -Seconds 2 }
+          $app = Start-App "$bin\TaskApp.exe" "taskapp2"
+          if (-not $app.HasExited) {
+              $w = Get-AppWindow $app.Id
+              if (Click-Text $w "Ajustes") { Snap $w "10-ajustes-tras-reinicio" }
           }
           if (-not $app.HasExited) { Stop-Process -Id $app.Id -Force }
           Get-Process -Name WerFault -ErrorAction SilentlyContinue | Stop-Process -Force
